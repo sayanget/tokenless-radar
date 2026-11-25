@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tokenless Radar: pre-token protocols ranked by implied value</title>
+<link rel="stylesheet" href="radar.css">
+</head>
+<body>
+<!-- A map for whoever reads this source. model.js is the value model: run, selectTerms, fitMultiple,
+     fitLaunchCurve, lifeTable, valueRow. farm.js is the verdict and plan: farmVerdict, farmPlan.
+     app.js refits both from the raw snapshot in data.js and checks every row against board.json. -->
+<div id="app" aria-busy="true"><p>Loading the snapshot.</p></div>
+<script src="../data.js"></script>
+<script src="model.js"></script>
+<script src="farm.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
