@@ -1,5 +1,5 @@
 /* Tokenless Radar: the page. It refits the model from the raw snapshot (RadarModel.run), checks every
-   row against board.json, and draws; every number comes from model.js and farm.js. */
+   row against board.json, and draws; every number comes from 1-model.js and 2-farm.js. */
 (function () {
   'use strict';
   var D = window.RADAR_DATA, Model = window.RadarModel, Farm = window.RadarFarm, usd = Farm.usd;
@@ -73,7 +73,7 @@
     rank: (r) => r.rank, name: (r) => r.name.toLowerCase(), tier: (r) => r.group,
     tvl: (r) => r.tvl_usd, g7: (r) => r.excess_7d, age: (r) => r.age_days === null ? 1e9 : r.age_days,
     odds: (r) => r.odds_12m, ifl: (r) => r.value_if_launched, implied: (r) => r.raw,
-    farm: (r) => r.v.cover
+    farm: (r) => ['SKIP', 'MARGINAL', 'FARM'].indexOf(r.v.verdict) * 1e7 + r.v.net
   };
   function visibleRows() {
     var q = S.q.trim().toLowerCase();
@@ -170,7 +170,7 @@
         h('button', { type: 'button', class: 'ghost', text: 'JSON', onclick: function () { exportRows('json'); } })));
   }
   var COLS = [['rank', '#', 'num'], ['name', 'Protocol', ''], ['tier', 'Tier', ''], ['tvl', 'TVL', 'num'], ['g7', '7d vs mkt', 'num'], ['age', 'No token', 'num'],
-    ['odds', 'Odds 12m', 'num'], ['ifl', 'If launched', 'num'], ['implied', 'Implied · P25–P75', 'num'], ['farm', 'Farm · net', 'num']];
+    ['odds', 'Odds 12m', 'num'], ['ifl', 'If launched', 'num'], ['implied', 'Implied · P25–P75', 'num'], ['farm', 'Verdict · net', 'num']];
   function rangeScale() {
     var lo = Infinity, hi = 0;
     M.rows.forEach(function (r) { lo = Math.min(lo, r.p25); hi = Math.max(hi, r.p75); });
@@ -248,7 +248,7 @@
     return box;
   }
   function modelCard() {
-    var sel = M.selection, b = M.fit.b, odds = M.oddsSelection;
+    var sel = M.selection, b = M.fit.b, odds = M.oddsSelection, cover = M.coverage.hit / M.coverage.n;
     var comps = M.comps.map((c) => [Math.log10(c.tvl_usd), Math.log10(c.mcap_usd / c.tvl_usd)]);
     var line = [6.7, 10.5].map((x) => [x, b[0] + (b[1] || 0) * (x - 8)]);
     var ages = M.rows.map((r) => [Math.min(5, (r.age_days === null ? Model.UNDATED_DAYS : r.age_days) / 365), r.odds_12m, 't-' + r.group]);
@@ -274,7 +274,8 @@
         })),
       h('p', { class: 'note' }, h('b', { text: 'Growth. ' }), 'This week the median protocol with no token moved ' + signed(M.week.none) + '%, one with a token ' + signed(M.week.token) +
         '%, so in the life table faster growth reads as earlier and trims the odds a little.'),
-      h('p', { class: 'note' }, h('b', { text: 'Range check. ' }), 'The P25–P75 range caught ' + M.coverage.hit + ' of ' + M.coverage.n + ' later caps in the walk-forward test (' + pct(M.coverage.hit / M.coverage.n) + '; 50% is calibrated), so read ranges as narrow. Values carry 3 significant figures.'));
+      h('p', { class: 'note' }, h('b', { text: 'Range check. ' }), 'The stated P25–P75 range held the real cap of ' + M.coverage.hit + ' of ' + M.coverage.n + ' walk-forward comps (' + pct(cover) + '; 50% is calibrated): ranges run ' +
+        (cover < 0.45 ? 'narrow' : cover > 0.55 ? 'wide' : 'about right') + '. Values carry 3 significant figures.'));
   }
 
   // ---- detail view

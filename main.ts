@@ -1,7 +1,7 @@
 // Tokenless Radar (token-radar-01), Node 22, standard library only.
 //
 // Reads the sealed snapshot (/input/snapshot.json, or --input <file|dir>), runs the value model in
-// dashboard/model.js and the farm verdict in dashboard/farm.js (the same two files the page runs, so the
+// dashboard/1-model.js and the farm verdict in dashboard/2-farm.js (the same two files the page runs, so the
 // page and board.json cannot disagree), writes /output/board.json and /output/data.js, copies dashboard/
 // and screenshots/ to /output, and last writes /output/dossier.json with the vendored make.fun library.
 //
@@ -16,8 +16,8 @@ import { buildDossier } from './vendor/makefun-board.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const load = createRequire(import.meta.url);
-const Model = load('./dashboard/model.js');
-const Farm = load('./dashboard/farm.js');
+const Model = load('./dashboard/1-model.js');
+const Farm = load('./dashboard/2-farm.js');
 
 /** The scorer's caps: the text cap shapes the dossier's bytes, the others only refuse. */
 const TEXT_MAX_BYTES = 65_536;

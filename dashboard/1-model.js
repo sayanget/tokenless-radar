@@ -1,6 +1,8 @@
 /* Tokenless Radar: the value model. The page and main.ts load this same file, so a number on the
    screen and a number in board.json come from one function. It reads only the snapshot's ten fields;
-   no protocol name or slug appears below. Implied value is this board's claim, never a forecast. */
+   no protocol name or slug appears below. Implied value is this board's claim, never a forecast.
+   Reading order: run (bottom) calls selectTerms and fitMultiple (value if launched), selectOdds and
+   lifeTable (launch odds), then valueRow. 2-farm.js nets a verdict and builds plans; 3-app.js draws. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.RadarModel = factory();
@@ -155,15 +157,8 @@
     return { terms: terms, table: table, loo: best.loo, walk: best.walk };
   }
 
-  /** Coverage check: how often a later comp's real cap lands inside the P25-P75 range set by earlier misses. */
-  function rangeCoverage(walk) {
-    var hit = 0, n = 0;
-    for (var i = 12; i < walk.length; i++) {
-      var prior = walk.slice(0, i), lo = quantile(prior, 0.25), hi = quantile(prior, 0.75);
-      n++; if (walk[i] >= lo && walk[i] <= hi) hit++;
-    }
-    return { hit: hit, n: n };
-  }
+  /** rangeCoverage: how often a walk-forward comp's real cap lands inside the stated P25-P75 range. */
+  function rangeCoverage(walk, lo, hi) { return { hit: walk.filter((r) => r >= lo && r <= hi).length, n: walk.length }; }
 
   // ---- launch odds: a life table read off the snapshot's own cross-section
   function oddsFeatures(p, days, terms) {
@@ -283,7 +278,7 @@
     var m = {
       ctx: ctx, comps: comps, fit: fitMultiple(comps, sel.terms, ctx), curve: fitLaunchCurve(pop, oddsSel.terms),
       selection: sel, oddsSelection: oddsSel, q25: quantile(loo, 0.25), q75: quantile(loo, 0.75),
-      coverage: rangeCoverage(walk), pop: pop.length, all: all, week: { token: week(true), none: week(false) }
+      coverage: rangeCoverage(walk, quantile(loo, 0.25), quantile(loo, 0.75)), pop: pop.length, all: all, week: { token: week(true), none: week(false) }
     };
     var ranked = all.filter((p) => p.group === 'watchlist' || p.group === 'offlist' || p.group === 'early')
       .map((p) => valueRow(m, p))
