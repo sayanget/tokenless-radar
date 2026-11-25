@@ -21,8 +21,10 @@ Held-out median miss, as a multiple (x = 10^median|log10 error|):
 | + 7d growth | x3.42 | x2.48 | not kept |
 
 Fitted: log10(cap/TVL) = -0.889 - 0.603 (log10 TVL - 8), so cap grows as TVL^0.40. Rule: a term is kept only if it
-lowers BOTH held-out misses. P25-P75 range from leave-one-out residuals (x0.30 to x4.0); sequential walk-forward
-coverage 11 of 28 (39%, 50% would be calibrated), so ranges run narrow; the page says so.
+lowers BOTH held-out misses. P25-P75 range from leave-one-out residuals (x0.30 to x4.0). Check of that stated range
+on the 40 walk-forward predictions: it holds the real cap of 22 (55%; 50% is calibrated). An earlier check used a
+sequential interval built from prior walk-forward misses (11 of 28, 39%). It was replaced because it tested a range
+the page never shows.
 
 ## Launch odds (life table, 383 dated peers, 10-fold log loss)
 base rate 0.697; age as log days 0.640; age as days 0.610; days flat after 3y 0.613; days flat after 4y 0.608 (chosen);
@@ -41,3 +43,19 @@ cap/TVL (size curve). The large watchlist names lead on value, not on return per
 ## Iterations
 1. Odds with log + linear age: rejected (non-monotone F). 2. Linear age: old tokenless protocols got 46-60% odds,
    against the 86% plateau in the data. 3. Linear age flat after 4y: chosen by held-out loss, credible shape.
+4. Growth in the odds has a negative sign (no-token protocols fell 3.6% this week, token ones 8.7%), so faster growth
+   trims the odds a little; the page states this instead of hiding it.
+
+## Critique rounds (judge's view, from the screenshots and the dossier text)
+- Round 1: last column clipped; tab labels ran into counts; equation wrapped; sorting by net put MARGINAL above FARM;
+  verdict box had dead space. Fixed: narrower columns, verdict-then-net sort, "what would flip it" break-even line.
+- Round 2: the judge reads files in path order, and app.js came first. Renamed to 1-model.js, 2-farm.js, 3-app.js.
+  Added per-row attribution of the three inputs (TVL, 7d growth, age) in the detail, and an "at launch" plan step
+  (the bounty asks what to do before or after a token). Turned one-line callbacks into arrows to stay under the
+  64 KB text cap.
+- Round 3: the range check and "7d growth kept" sat below the fold on the cover; moved the range check up and
+  collapsed the three tried age shapes into one row.
+
+## Final sizes
+dashboard 64,271 B (dossier text 64,694 of 65,536, nothing cut); screenshots 334-337 KB JPEG at 1440x1000;
+dossier 1,409,547 B (cap 1,572,864). Runs in about 0.5 s; byte-identical across runs and on Node 22 and 24.

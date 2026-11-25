@@ -249,6 +249,7 @@
   }
   function modelCard() {
     var sel = M.selection, b = M.fit.b, odds = M.oddsSelection, cover = M.coverage.hit / M.coverage.n;
+    var tried = odds.table.filter((t) => t.term.indexOf('age') === 0 && !t.kept).map((t) => t.loss);
     var comps = M.comps.map((c) => [Math.log10(c.tvl_usd), Math.log10(c.mcap_usd / c.tvl_usd)]);
     var line = [6.7, 10.5].map((x) => [x, b[0] + (b[1] || 0) * (x - 8)]);
     var ages = M.rows.map((r) => [Math.min(5, (r.age_days === null ? Model.UNDATED_DAYS : r.age_days) / 365), r.odds_12m, 't-' + r.group]);
@@ -266,16 +267,18 @@
         sel.table.map(function (t, i) {
           return h('tr', { class: t.kept ? 'kept' : 'drop' }, h('td', { text: (i ? '+ ' : '') + (t.term === 'growth' ? '7d growth' : t.term) }), h('td', { text: '×' + t.loo.toFixed(2) }), h('td', { text: '×' + t.walk.toFixed(2) }), h('td', { text: i === 0 ? 'base' : t.kept ? 'kept' : 'not kept' }));
         })),
+      h('p', { class: 'note' }, h('b', { text: 'Range check. ' }), 'The stated P25–P75 range held the real cap of ' + M.coverage.hit + ' of ' + M.coverage.n + ' walk-forward comps (' + pct(cover) + '; 50% is calibrated): ranges run ' +
+        (cover < 0.45 ? 'narrow' : cover > 0.55 ? 'wide' : 'about right') + '. Values carry 3 significant figures.'),
       h('table', { class: 'mini' }, h('caption', { text: 'Launch odds: 10-fold held-out log loss' }),
         odds.table.map(function (t, i) {
           var shape = t.term.indexOf('age') === 0;
-          return h('tr', { class: t.kept ? 'kept' : 'drop' }, h('td', { text: (shape || !i ? '' : '+ ') + (t.term === 'growth' ? '7d growth' : t.term) }), h('td', { text: t.loss.toFixed(3) }),
-            h('td', { text: i === 0 ? 'base' : shape ? (t.kept ? 'chosen' : 'tried') : t.kept ? 'kept' : 'not kept' }));
+          if (shape && !t.kept) return null;
+          var row = h('tr', { class: t.kept ? 'kept' : 'drop' }, h('td', { text: (shape || !i ? '' : '+ ') + (t.term === 'growth' ? '7d growth' : t.term) }), h('td', { text: t.loss.toFixed(3) }),
+            h('td', { text: i === 0 ? 'base' : shape ? 'chosen' : t.kept ? 'kept' : 'not kept' }));
+          return shape ? [h('tr', { class: 'drop' }, h('td', { text: tried.length + ' other age shapes' }), h('td', { text: Math.min.apply(null, tried).toFixed(3) + '+' }), h('td', { text: 'tried' })), row] : row;
         })),
       h('p', { class: 'note' }, h('b', { text: 'Growth. ' }), 'This week the median protocol with no token moved ' + signed(M.week.none) + '%, one with a token ' + signed(M.week.token) +
-        '%, so in the life table faster growth reads as earlier and trims the odds a little.'),
-      h('p', { class: 'note' }, h('b', { text: 'Range check. ' }), 'The stated P25–P75 range held the real cap of ' + M.coverage.hit + ' of ' + M.coverage.n + ' walk-forward comps (' + pct(cover) + '; 50% is calibrated): ranges run ' +
-        (cover < 0.45 ? 'narrow' : cover > 0.55 ? 'wide' : 'about right') + '. Values carry 3 significant figures.'));
+        '%, so in the life table faster growth reads as earlier and trims the odds a little.'));
   }
 
   // ---- detail view
