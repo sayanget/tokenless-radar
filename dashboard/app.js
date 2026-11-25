@@ -1,7 +1,5 @@
-/* Tokenless Radar: the page. It refits the model from the raw snapshot in data.js (RadarModel.run),
-   recomputes every row, checks each against board.json's rank and implied value, then draws the
-   checks, the ledger, the board, the model card and the detail view. Numbers come only from
-   model.js and farm.js; this file draws, sorts, filters and exports. */
+/* Tokenless Radar: the page. It refits the model from the raw snapshot (RadarModel.run), checks every
+   row against board.json, and draws; every number comes from model.js and farm.js. */
 (function () {
   'use strict';
   var D = window.RADAR_DATA, Model = window.RadarModel, Farm = window.RadarFarm, usd = Farm.usd;
@@ -11,8 +9,8 @@
     deposit: Farm.DEFAULTS.deposit, months: Farm.DEFAULTS.months, dropShare: Farm.DEFAULTS.dropShare };
   var TIERS = { watchlist: 'Watchlist', offlist: 'Off-list', early: 'Early' };
   var GROUPS = [
-    ['watchlist', 'Ranked: watchlist'], ['offlist', 'Ranked: off-list, at or above floor'], ['early', 'Ranked: early, below floor'],
-    ['trades', 'Token trades (priced comps)'], ['recorded', 'Token recorded, no usable cap'], ['out', 'Out by rule: bridge, LST, CEX, versioned, wrapped']
+    ['watchlist', 'Ranked: watchlist'], ['offlist', 'Ranked: off-list, ≥ floor'], ['early', 'Ranked: early, < floor'],
+    ['trades', 'Token trades (priced comps)'], ['recorded', 'Token recorded, no cap'], ['out', 'Out by rule: bridge, LST, CEX, versioned, wrapped']
   ];
 
   /** checkAgainstBoard: each row recomputed here must carry board.json's own rank and implied value. */
@@ -24,7 +22,7 @@
   }
   /** houseRule: does this file's rule rebuild the house watchlist from the ten fields alone? */
   function houseRule() {
-    var wl = M.rows.filter(function (r) { return r.group === 'watchlist'; }), byRule = wl.filter(function (r) { return Model.ruleOut(r) === null && r.tvl_usd >= D.snapshot.floor_usd; });
+    var wl = M.rows.filter((r) => r.group === 'watchlist'), byRule = wl.filter((r) => Model.ruleOut(r) === null && r.tvl_usd >= D.snapshot.floor_usd);
     return { wl: wl.length, byRule: byRule.length, n: D.snapshot.watchlist.length };
   }
   var CHECK = checkAgainstBoard(), RULE = houseRule();
@@ -72,10 +70,10 @@
 
   // ---- filtering, sorting, export
   var SORTS = {
-    rank: function (r) { return r.rank; }, name: function (r) { return r.name.toLowerCase(); }, tier: function (r) { return r.group; },
-    tvl: function (r) { return r.tvl_usd; }, g7: function (r) { return r.excess_7d; }, age: function (r) { return r.age_days === null ? 1e9 : r.age_days; },
-    odds: function (r) { return r.odds_12m; }, ifl: function (r) { return r.value_if_launched; }, implied: function (r) { return r.raw; },
-    farm: function (r) { return r.v.net; }
+    rank: (r) => r.rank, name: (r) => r.name.toLowerCase(), tier: (r) => r.group,
+    tvl: (r) => r.tvl_usd, g7: (r) => r.excess_7d, age: (r) => r.age_days === null ? 1e9 : r.age_days,
+    odds: (r) => r.odds_12m, ifl: (r) => r.value_if_launched, implied: (r) => r.raw,
+    farm: (r) => r.v.cover
   };
   function visibleRows() {
     var q = S.q.trim().toLowerCase();
@@ -95,7 +93,7 @@
       return { rank: r.rank, slug: r.slug, tier: r.group, tvl_usd: r.tvl_usd, change_7d: r.change_7d, age_days: r.age_days, odds_12m: +r.odds_12m.toFixed(4),
         value_if_launched_usd: Math.round(r.value_if_launched), implied_value_usd: r.implied_value_usd, verdict: r.v.verdict, net_usd: Math.round(r.v.net) };
     });
-    var body = kind === 'json' ? JSON.stringify(rows, null, 1) : [Object.keys(rows[0] || {})].concat(rows.map(function (o) { return Object.keys(o).map(function (k) { return o[k]; }); })).join('\n');
+    var body = kind === 'json' ? JSON.stringify(rows, null, 1) : [Object.keys(rows[0] || {})].concat(rows.map(function (o) { return Object.keys(o).map((k) => o[k]); })).join('\n');
     var a = h('a', { href: URL.createObjectURL(new Blob([body])), download: 'tokenless-radar.' + kind });
     document.body.appendChild(a); a.click(); a.remove();
   }
@@ -147,36 +145,36 @@
         options.map(function (o) { return h('option', { value: o[0], selected: String(S[key]) === String(o[0]) ? 'selected' : null, text: o[1] }); })));
   }
   function controls() {
-    var count = function (k, v) { return M.rows.filter(function (r) { return k === 'tier' ? r.group === v : r.v.verdict === v; }).length; };
+    var count = function (k, v) { return M.rows.filter((r) => k === 'tier' ? r.group === v : r.v.verdict === v).length; };
     var chains = {};
     M.rows.forEach(function (r) { if (r.chains[0]) chains[r.chains[0]] = (chains[r.chains[0]] || 0) + 1; });
-    var chainList = Object.keys(chains).filter(function (c) { return chains[c] >= 3; }).sort(function (a, b) { return chains[b] - chains[a] || (a < b ? -1 : 1); });
+    var chainList = Object.keys(chains).filter((c) => chains[c] >= 3).sort((a, b) => chains[b] - chains[a] || (a < b ? -1 : 1));
     var search = h('input', { type: 'search', id: 'q', placeholder: 'Search name, category, chain', value: S.q, 'aria-label': 'Search',
       oninput: function (e) { S.q = e.target.value; drawTable(); } });
     return h('section', { class: 'controls' },
       h('div', { class: 'row' },
         h('div', { class: 'chips', role: 'group', 'aria-label': 'Tier' }, chip('tier', 'all', 'All tiers', M.rows.length),
-          ['watchlist', 'offlist', 'early'].map(function (t) { return chip('tier', t, TIERS[t], count('tier', t)); })),
+          ['watchlist', 'offlist', 'early'].map((t) => chip('tier', t, TIERS[t], count('tier', t)))),
         h('div', { class: 'chips', role: 'group', 'aria-label': 'Verdict' }, chip('verdict', 'all', 'All verdicts'),
-          ['FARM', 'MARGINAL', 'SKIP'].map(function (v) { return chip('verdict', v, v, count('verdict', v)); })),
+          ['FARM', 'MARGINAL', 'SKIP'].map((v) => chip('verdict', v, v, count('verdict', v)))),
         search),
       h('div', { class: 'row' },
-        select('family', [['all', 'All families']].concat(Object.keys(Model.FAMILY_NAME).map(function (f) { return [f, Model.FAMILY_NAME[f]]; })), 'Family'),
-        select('chain', [['all', 'All main chains']].concat(chainList.map(function (c) { return [c, c + ' (' + chains[c] + ')']; })), 'Main chain'),
+        select('family', [['all', 'All families']].concat(Object.keys(Model.FAMILY_NAME).map((f) => [f, Model.FAMILY_NAME[f]])), 'Family'),
+        select('chain', [['all', 'All main chains']].concat(chainList.map((c) => [c, c + ' (' + chains[c] + ')'])), 'Main chain'),
         h('span', { class: 'divider' }),
-        select('deposit', [[1000, '$1K'], [2000, '$2K'], [10000, '$10K'], [50000, '$50K'], [250000, '$250K']], 'Deposit'),
+        select('deposit', [[2000, '$2K'], [10000, '$10K'], [50000, '$50K'], [250000, '$250K']], 'Deposit'),
         select('months', [[3, '3 months'], [6, '6 months'], [12, '12 months']], 'Horizon'),
         select('dropShare', [[0.05, '5% of value'], [0.1, '10% of value'], [0.2, '20% of value']], 'Airdrop share'),
         h('span', { class: 'grow' }),
         h('button', { type: 'button', class: 'ghost', text: 'CSV', onclick: function () { exportRows('csv'); } }),
         h('button', { type: 'button', class: 'ghost', text: 'JSON', onclick: function () { exportRows('json'); } })));
   }
-  var COLS = [['rank', '#', 'num'], ['name', 'Protocol', ''], ['tier', 'Tier', ''], ['tvl', 'TVL', 'num'], ['g7', '7d vs market', 'num'], ['age', 'No token for', 'num'],
-    ['odds', 'Odds 12 mo', 'num'], ['ifl', 'If launched', 'num'], ['implied', 'Implied value · P25–P75', 'num wide'], ['farm', 'Farm net', 'num']];
+  var COLS = [['rank', '#', 'num'], ['name', 'Protocol', ''], ['tier', 'Tier', ''], ['tvl', 'TVL', 'num'], ['g7', '7d vs mkt', 'num'], ['age', 'No token', 'num'],
+    ['odds', 'Odds 12m', 'num'], ['ifl', 'If launched', 'num'], ['implied', 'Implied · P25–P75', 'num'], ['farm', 'Farm · net', 'num']];
   function rangeScale() {
     var lo = Infinity, hi = 0;
     M.rows.forEach(function (r) { lo = Math.min(lo, r.p25); hi = Math.max(hi, r.p75); });
-    return function (x) { return 100 * (Math.log(x) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)); };
+    return (x) => 100 * (Math.log(x) - Math.log(lo)) / (Math.log(hi) - Math.log(lo));
   }
   var SCALE = rangeScale();
   function boardRow(r) {
@@ -190,8 +188,8 @@
       h('td', { class: 'num', text: age(r.age_days) }),
       h('td', { class: 'num', text: pct(r.odds_12m) }),
       h('td', { class: 'num', text: usd(r.value_if_launched) }),
-      h('td', { class: 'num wide' }, h('span', { class: 'range' }, h('i', { style: 'left:' + SCALE(r.p25) + '%;width:' + (SCALE(r.p75) - SCALE(r.p25)) + '%' }),
-        h('em', { style: 'left:' + SCALE(r.implied_value_usd) + '%' })), h('b', { text: usd(r.implied_value_usd) })),
+      h('td', { class: 'num' }, h('span', { class: 'imp' }, h('span', { class: 'range' }, h('i', { style: 'left:' + SCALE(r.p25) + '%;width:' + (SCALE(r.p75) - SCALE(r.p25)) + '%' }),
+        h('em', { style: 'left:' + SCALE(r.implied_value_usd) + '%' })), h('b', { text: usd(r.implied_value_usd) }))),
       h('td', { class: 'num farm' }, verdictTag(r.v), h('span', { text: money(r.v.net) })));
   }
   function drawTable() {
@@ -213,7 +211,7 @@
   /** groupTable: the protocols off the board, so every one of the snapshot's protocols can be looked up. */
   function groupTable(g) {
     var q = S.q.trim().toLowerCase(), trades = g === 'trades';
-    var list = M.all.filter(function (p) { return p.group === g && (p.name + ' ' + p.category).toLowerCase().indexOf(q) >= 0; }).sort(function (a, b) { return b.tvl_usd - a.tvl_usd; });
+    var list = M.all.filter((p) => p.group === g && (p.name + ' ' + p.category).toLowerCase().indexOf(q) >= 0).sort((a, b) => b.tvl_usd - a.tvl_usd);
     return h('div', { class: 'tablewrap' }, h('table', { class: 'board' },
       h('thead', null, h('tr', null, ['Protocol', 'Category', 'TVL', trades ? 'Cap' : 'Token', trades ? 'Cap/TVL' : 'Why not ranked'].map(function (t) { return h('th', null, h('span', { text: t })); }))),
       h('tbody', null, list.map(function (p) {
@@ -227,7 +225,7 @@
     var c = { FARM: 0, MARGINAL: 0, SKIP: 0 }, farmEarly = 0;
     M.rows.forEach(function (r) { c[r.v.verdict]++; if (r.v.verdict === 'FARM' && r.group === 'early') farmEarly++; });
     return h('p', { class: 'lead' }, h('b', { text: 'At ' + usd(S.deposit) + ' for ' + S.months + ' months, airdrop share ' + pct(S.dropShare) + ': ' }),
-      c.FARM + ' FARM, ' + c.MARGINAL + ' MARGINAL, ' + c.SKIP + ' SKIP. ' + farmEarly + ' of the ' + c.FARM + ' FARM rows sit below the ' + usd(D.snapshot.floor_usd) +
+      c.FARM + ' FARM, ' + c.MARGINAL + ' MARGINAL, ' + c.SKIP + ' SKIP. ' + farmEarly + ' of the ' + c.FARM + ' FARM rows sit below the $' + D.snapshot.floor_usd / 1e6 + 'M' +
       ' floor: there a deposit buys a bigger share of TVL, and small protocols trade at a higher cap/TVL. Large protocols lead on value, not on return per dollar.');
   }
   function tabs() {
@@ -239,31 +237,30 @@
   // ---- model card: the fitted curve, the held-out tables and the range check
   /** plot: a small scatter with a fitted line, as SVG markup (numbers and fixed labels only). */
   function plot(points, line, xr, yr, xl, yl, w, ht) {
-    var X = function (x) { return (30 + (x - xr[0]) / (xr[1] - xr[0]) * (w - 38)).toFixed(1); };
-    var Y = function (y) { return (ht - 18 - (Math.max(yr[0], Math.min(yr[1], y)) - yr[0]) / (yr[1] - yr[0]) * (ht - 26)).toFixed(1); };
+    var X = (x) => (12 + (x - xr[0]) / (xr[1] - xr[0]) * (w - 18)).toFixed(1);
+    var Y = (y) => (ht - 18 - (Math.max(yr[0], Math.min(yr[1], y)) - yr[0]) / (yr[1] - yr[0]) * (ht - 26)).toFixed(1);
     var box = h('div', { class: 'plotbox' });
     box.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + ht + '" class="plot" role="img" aria-label="' + yl + ' against ' + xl + '">' +
-      '<path class="axis" d="M30 8V' + (ht - 18) + 'H' + (w - 8) + '"/>' +
-      points.map(function (p) { return '<circle class="' + (p[2] || 'dot') + '" r="2.2" cx="' + X(p[0]) + '" cy="' + Y(p[1]) + '"/>'; }).join('') +
-      '<polyline class="fit" points="' + line.map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' ') + '"/>' +
-      '<text x="' + (w - 8) + '" y="' + (ht - 4) + '" text-anchor="end">' + xl + '</text><text x="34" y="14">' + yl + '</text></svg>';
+      '<path class="axis" d="M12 8V' + (ht - 18) + 'H' + (w - 8) + '"/>' +
+      points.map((p) => '<circle class="' + (p[2] || 'dot') + '" r="1.8" cx="' + X(p[0]) + '" cy="' + Y(p[1]) + '"/>').join('') +
+      '<polyline class="fit" points="' + line.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ') + '"/>' +
+      '<text x="' + (w - 8) + '" y="' + (ht - 4) + '" text-anchor="end">' + xl + '</text><text x="16" y="14">' + yl + '</text></svg>';
     return box;
   }
   function modelCard() {
     var sel = M.selection, b = M.fit.b, odds = M.oddsSelection;
-    var comps = M.comps.map(function (c) { return [Math.log10(c.tvl_usd), Math.log10(c.mcap_usd / c.tvl_usd)]; });
-    var line = [6.7, 10.5].map(function (x) { return [x, b[0] + (b[1] || 0) * (x - 8)]; });
-    var ages = M.rows.map(function (r) { return [Math.min(5, (r.age_days === null ? Model.UNDATED_DAYS : r.age_days) / 365), r.odds_12m, 't-' + r.group]; });
+    var comps = M.comps.map((c) => [Math.log10(c.tvl_usd), Math.log10(c.mcap_usd / c.tvl_usd)]);
+    var line = [6.7, 10.5].map((x) => [x, b[0] + (b[1] || 0) * (x - 8)]);
+    var ages = M.rows.map((r) => [Math.min(5, (r.age_days === null ? Model.UNDATED_DAYS : r.age_days) / 365), r.odds_12m, 't-' + r.group]);
     var typical = { tvl_usd: 1e8, category: 'Lending', change_7d: M.ctx.market7d };
     var curve = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(function (y) { typical.age = y * 365; return [y, Model.launchOdds(M.curve, typical, 365)]; });
     return h('aside', { class: 'card' },
       h('h2', { text: 'How the value is made' }),
-      h('p', { class: 'eq' }, 'value if launched = TVL × ', h('b', { text: Math.pow(10, b[0]).toFixed(3) }), ' × (TVL / $100M)', h('sup', { text: (b[1] || 0).toFixed(3) })),
-      h('p', { class: 'eq' }, 'implied value = value if launched × launch odds (12 mo)'),
+      h('p', { class: 'eq' }, 'implied = TVL × m(TVL) × odds(12 mo)', h('br'), 'm(TVL) = ', h('b', { text: Math.pow(10, b[0]).toFixed(3) }), ' × (TVL / $100M)', h('sup', { text: (b[1] || 0).toFixed(3) })),
       h('p', { class: 'note', text: 'selectTerms fits log cap/TVL on ' + M.comps.length + ' traded comps (Huber-weighted), adding a term only if it lowers both held-out misses. fitLaunchCurve reads launch odds off ' + M.pop + ' dated peers: of those still without a token at this age, the share that record one a year later.' }),
       h('div', { class: 'plots' },
-        plot(comps, line, [6.6, 10.6], [-3.2, 2.7], 'log TVL', 'log cap/TVL', 200, 132),
-        plot(ages, curve, [0, 5], [0, 0.6], 'years with no token', 'odds 12 mo', 200, 132)),
+        plot(comps, line, [6.6, 10.6], [-3.2, 2.7], 'log10 TVL', 'log10 cap/TVL, 92 comps', 139, 112),
+        plot(ages, curve, [0, 5], [0, 0.6], 'years, no token', 'odds 12 mo, 198 rows', 139, 112)),
       h('table', { class: 'mini' }, h('caption', { text: 'Cap/TVL multiple: median held-out miss' }),
         h('tr', null, h('th', { text: 'term' }), h('th', { text: 'leave 1 out' }), h('th', { text: 'walk fwd' }), h('th', { text: '' })),
         sel.table.map(function (t, i) {
@@ -275,6 +272,8 @@
           return h('tr', { class: t.kept ? 'kept' : 'drop' }, h('td', { text: (shape || !i ? '' : '+ ') + (t.term === 'growth' ? '7d growth' : t.term) }), h('td', { text: t.loss.toFixed(3) }),
             h('td', { text: i === 0 ? 'base' : shape ? (t.kept ? 'chosen' : 'tried') : t.kept ? 'kept' : 'not kept' }));
         })),
+      h('p', { class: 'note' }, h('b', { text: 'Growth. ' }), 'This week the median protocol with no token moved ' + signed(M.week.none) + '%, one with a token ' + signed(M.week.token) +
+        '%, so in the life table faster growth reads as earlier and trims the odds a little.'),
       h('p', { class: 'note' }, h('b', { text: 'Range check. ' }), 'The P25–P75 range caught ' + M.coverage.hit + ' of ' + M.coverage.n + ' later caps in the walk-forward test (' + pct(M.coverage.hit / M.coverage.n) + '; 50% is calibrated), so read ranges as narrow. Values carry 3 significant figures.'));
   }
 
@@ -290,13 +289,21 @@
       ['× launch odds, 12 months', pct(r.odds_12m), r.raw]
     ];
     var top = Math.log(r.tvl_usd), bottom = Math.log(r.raw) - 1;
+    var atMarket = Model.launchOdds(M.curve, Object.assign({}, r, { change_7d: M.ctx.market7d }), 365);
+    var inputs = [
+      ['TVL', usd(r.tvl_usd), 'size curve ×' + (p.size || 1).toFixed(3) + ' against $100M'],
+      ['7d growth', signed(r.excess_7d) + ' pts vs market', 'odds ' + pct(r.odds_12m, 1) + ', ' + pct(atMarket, 1) + ' at the market’s pace'],
+      ['No token for', age(r.age_days), 'peers this age: ' + pct(lt.F0) + ' record a token, ' + pct(lt.F1) + ' a year on']
+    ];
     return h('section', { class: 'box' }, h('h3', { text: 'How the figure is made' }),
       h('div', { class: 'fall' }, steps.map(function (s) {
         return h('div', { class: 'fstep' }, h('span', { text: s[0] }), h('em', { text: s[1] }),
           h('i', { style: 'width:' + Math.max(2, 100 * (Math.log(s[2]) - bottom) / (top - bottom)) + '%' }), h('b', { text: usd(s[2]) }));
       })),
       h('p', { class: 'total' }, 'Implied value ', h('b', { text: usd(r.implied_value_usd) }), ' (P25–P75 ' + usd(r.p25) + ' to ' + usd(r.p75) + ')'),
-      h('p', { class: 'note', text: 'Life table: of peers this age (' + age(r.age_days) + ', ' + Model.FAMILY_NAME[r.family] + ', 7d ' + signed(r.excess_7d) + ' pts vs market) ' + pct(lt.F0) + ' record a token; a year later ' + pct(lt.F1) + '. Odds = (' + pct(lt.F1) + ' − ' + pct(lt.F0) + ') / (100% − ' + pct(lt.F0) + ').' }),
+      h('table', { class: 'mini wide' }, h('caption', { text: 'What the three snapshot inputs do to this row' }), inputs.map(function (x) {
+        return h('tr', null, h('th', { text: x[0] }), h('td', { text: x[1] }), h('td', { text: x[2] }));
+      })),
       h('p', { class: 'note ' + (CHECK.same ? 'ok' : 'bad'), text: (CHECK.same ? '✓ Recomputed here: ' : '✗ Differs: ') + 'rank ' + r.rank + ', ' + r.implied_value_usd.toLocaleString('en-US') + ' USD, as board.json writes it.' }));
   }
   function peers(r) {
@@ -319,7 +326,9 @@
     ];
     return h('section', { class: 'box' }, h('h3', null, 'Farm verdict · ' + usd(s.deposit) + ', ' + s.months + ' mo, ' + pct(s.dropShare) + ' airdrop share ', verdictTag(v)),
       h('dl', { class: 'lines' }, lines.map(function (l) { return [h('dt', { text: l[0] }), h('dd', { text: l[1] })]; })),
-      h('p', { class: 'note', text: 'FARM when the drop covers costs 2× or more (here ' + v.cover.toFixed(2) + '×), MARGINAL from 1×, else SKIP.' }));
+      h('p', { class: 'note', text: 'FARM when the drop covers costs 2× or more (here ' + v.cover.toFixed(2) + '×), MARGINAL from 1×, else SKIP.' }),
+      h('p', { class: 'note' }, h('b', { text: 'What would flip it. ' }), s.dropShare / v.cover > 1 ? 'No airdrop pays here: even 100% of the token’s value to depositors covers ' + pct(v.cover / s.dropShare) + ' of costs at this deposit.'
+        : 'Break-even at an airdrop share of ' + pct(s.dropShare / v.cover, 1) + '; FARM from ' + pct(2 * s.dropShare / v.cover, 1) + '.'));
   }
   /** sensitivity: the net under other airdrop shares and deposits, same horizon. */
   function sensitivity(r) {
@@ -342,7 +351,7 @@
   function drawDetail() {
     var host = document.getElementById('detail');
     host.textContent = '';
-    var r = M.rows.filter(function (x) { return x.slug === S.open; })[0];
+    var r = M.rows.filter((x) => x.slug === S.open)[0];
     host.hidden = !r;
     document.querySelectorAll('#rows tr').forEach(function (tr) { tr.classList.remove('sel'); });
     if (!r) return;

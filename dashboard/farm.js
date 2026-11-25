@@ -74,6 +74,7 @@
       { step: 'Position: ' + v.action.text, cost: usd(3 * g) + ' gas (approve and deposit)', time: '20 min' },
       { step: 'Keep it counted: once a month for ' + s.months + ' months, open the points or rewards page, claim or compound if offered, and check the position is still open (' + v.action.monthly + ' transaction' + (v.action.monthly > 1 ? 's' : '') + ' a month).', cost: usd(v.action.monthly * g) + ' gas a month' + (v.fees > 0 ? ' plus about ' + usd(v.fees / s.months) + ' of trading fees' : ''), time: weekly + ' min a month' },
       { step: 'Exit rule: withdraw if TVL falls below ' + usd(exitAt) + ' (30% under the snapshot\'s ' + usd(row.tvl_usd) + '), if the protocol pauses withdrawals, or at month ' + s.months + '; then revoke every approval this wallet gave.', cost: usd(2 * g) + ' gas (withdraw and revoke)', time: '30 min' },
+      { step: 'At launch: check eligibility only on the protocol\'s own domain, claim, and at once sell enough to cover the ' + usd(v.cost) + ' cost basis; hold the rest only if the token trades at or above the modelled ' + usd(row.value_if_launched) + ' cap.', cost: usd(2 * g) + ' gas (claim and swap) plus the swap\'s fee', time: '20 min on launch day' },
       { step: 'Ledger: log each transaction (date, hash, amount, gas). Cost basis ' + usd(v.cost) + ' (gas ' + usd(v.gas) + ', fees ' + usd(v.fees) + ', risk charge ' + usd(v.risk) + ') against a modelled drop of ' + usd(v.drop) + ': ' + v.verdict + ', the drop covers costs ' + v.cover.toFixed(1) + ' times.', cost: '$0', time: '5 min per transaction' }
     ];
   }

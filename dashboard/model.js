@@ -42,11 +42,11 @@
     return isFinite(d) ? Math.max(0, d) : null;
   }
   function median(xs) {
-    var s = xs.slice().sort(function (a, b) { return a - b; }), n = s.length;
+    var s = xs.slice().sort((a, b) => a - b), n = s.length;
     return n === 0 ? 0 : n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
   }
   function quantile(xs, q) {
-    var s = xs.slice().sort(function (a, b) { return a - b; }), i = (s.length - 1) * q, lo = Math.floor(i);
+    var s = xs.slice().sort((a, b) => a - b), i = (s.length - 1) * q, lo = Math.floor(i);
     return lo + 1 < s.length ? s[lo] + (s[lo + 1] - s[lo]) * (i - lo) : s[lo];
   }
   function dot(x, b) { var s = 0; for (var i = 0; i < x.length; i++) s += x[i] * b[i]; return s; }
@@ -111,8 +111,8 @@
 
   /** fitMultiple: log10(mcap/TVL) of traded comps on the terms, Huber-weighted so one wild cap cannot steer it. */
   function fitMultiple(comps, terms, ctx) {
-    var X = comps.map(function (p) { return features(p, terms, ctx); });
-    var y = comps.map(logMultiple), w = y.map(function () { return 1; }), lam = penalties(terms), b;
+    var X = comps.map((p) => features(p, terms, ctx));
+    var y = comps.map(logMultiple), w = y.map(() => 1), lam = penalties(terms), b;
     for (var it = 0; it < 8; it++) {
       b = solveRidge(X, y, w, lam);
       w = X.map(function (x, i) { var r = Math.abs(y[i] - dot(x, b)); return r <= 0.5 ? 1 : 0.5 / r; });
@@ -124,13 +124,13 @@
   /** Held-out residuals: leave-one-out, and walk-forward (fit only on comps listed earlier). */
   function looResiduals(comps, terms, ctx) {
     return comps.map(function (p, i) {
-      var fit = fitMultiple(comps.filter(function (_, j) { return j !== i; }), terms, ctx);
+      var fit = fitMultiple(comps.filter((_, j) => j !== i), terms, ctx);
       return logMultiple(p) - predictLog(fit, p, ctx);
     });
   }
   function walkResiduals(comps, terms, ctx) {
-    var undated = comps.filter(function (p) { return p.age === null; });
-    var dated = comps.filter(function (p) { return p.age !== null; }).sort(function (a, b) { return a.listed_at < b.listed_at ? -1 : a.listed_at > b.listed_at ? 1 : bySlug(a, b); });
+    var undated = comps.filter((p) => p.age === null);
+    var dated = comps.filter((p) => p.age !== null).sort((a, b) => a.listed_at < b.listed_at ? -1 : a.listed_at > b.listed_at ? 1 : bySlug(a, b));
     var out = [];
     for (var i = MIN_TRAIN; i < dated.length; i++) {
       var fit = fitMultiple(undated.concat(dated.slice(0, i)), terms, ctx);
@@ -177,9 +177,9 @@
   function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
   /** fitLaunchCurve: logistic P(records a token | age, ...) by iteratively reweighted least squares. */
   function fitLaunchCurve(pop, terms) {
-    var X = pop.map(function (p) { return oddsFeatures(p, p.age, terms); });
-    var y = pop.map(function (p) { return p.tok ? 1 : 0; });
-    var lam = X[0].map(function (_, j) { return j === 0 ? 0 : 1; }), b = X[0].map(function () { return 0; });
+    var X = pop.map((p) => oddsFeatures(p, p.age, terms));
+    var y = pop.map((p) => p.tok ? 1 : 0);
+    var lam = X[0].map((_, j) => j === 0 ? 0 : 1), b = X[0].map(() => 0);
     for (var it = 0; it < 25; it++) {
       var w = [], z = [];
       X.forEach(function (x, i) {
@@ -194,9 +194,9 @@
   function oddsLogLoss(pop, terms) {
     var loss = 0;
     for (var k = 0; k < 10; k++) {
-      var train = pop.filter(function (_, i) { return i % 10 !== k; });
+      var train = pop.filter((_, i) => i % 10 !== k);
       var fit = terms === null ? null : fitLaunchCurve(train, terms);
-      var base = train.filter(function (p) { return p.tok; }).length / train.length;
+      var base = train.filter((p) => p.tok).length / train.length;
       pop.forEach(function (p, i) {
         if (i % 10 !== k) return;
         var q = fit === null ? base : sigmoid(dot(oddsFeatures(p, p.age, terms), fit.b));
@@ -256,7 +256,7 @@
 
   /** nearestPeers: the priced comps of the same family closest in TVL, the cap/TVL each trades at. */
   function nearestPeers(m, row, n) {
-    var same = m.comps.filter(function (c) { return familyOf(c.category) === row.family; });
+    var same = m.comps.filter((c) => familyOf(c.category) === row.family);
     var pool = same.length >= n ? same : m.comps;
     return pool.slice().sort(function (a, b) {
       return Math.abs(Math.log10(a.tvl_usd / row.tvl_usd)) - Math.abs(Math.log10(b.tvl_usd / row.tvl_usd)) || bySlug(a, b);
@@ -273,20 +273,21 @@
       q.group = ledgerGroup(p, watch, snapshot.floor_usd); q.reason = ruleOut(p);
       return q;
     });
-    var ctx = { market7d: median(all.filter(function (p) { return p.change_7d !== null; }).map(function (p) { return p.change_7d; })) };
-    var comps = all.filter(function (p) { return p.group === 'trades' && p.reason === null; });
+    var ctx = { market7d: median(all.filter((p) => p.change_7d !== null).map((p) => p.change_7d)) };
+    var comps = all.filter((p) => p.group === 'trades' && p.reason === null);
     var sel = selectTerms(comps, ctx);
     var loo = looResiduals(comps, sel.terms, ctx), walk = walkResiduals(comps, sel.terms, ctx);
-    var pop = all.filter(function (p) { return p.reason === null && p.age !== null; });
+    var pop = all.filter((p) => p.reason === null && p.age !== null);
+    var week = function (tok) { return median(pop.filter((p) => p.tok === tok && p.change_7d !== null).map((p) => p.change_7d)); };
     var oddsSel = selectOdds(pop, ctx);
     var m = {
       ctx: ctx, comps: comps, fit: fitMultiple(comps, sel.terms, ctx), curve: fitLaunchCurve(pop, oddsSel.terms),
       selection: sel, oddsSelection: oddsSel, q25: quantile(loo, 0.25), q75: quantile(loo, 0.75),
-      coverage: rangeCoverage(walk), pop: pop.length, all: all
+      coverage: rangeCoverage(walk), pop: pop.length, all: all, week: { token: week(true), none: week(false) }
     };
-    var ranked = all.filter(function (p) { return p.group === 'watchlist' || p.group === 'offlist' || p.group === 'early'; })
-      .map(function (p) { return valueRow(m, p); })
-      .sort(function (a, b) { return b.implied_value_usd - a.implied_value_usd || b.raw - a.raw || bySlug(a, b); });
+    var ranked = all.filter((p) => p.group === 'watchlist' || p.group === 'offlist' || p.group === 'early')
+      .map((p) => valueRow(m, p))
+      .sort((a, b) => b.implied_value_usd - a.implied_value_usd || b.raw - a.raw || bySlug(a, b));
     ranked.forEach(function (r, i) { r.rank = i + 1; });
     m.rows = ranked;
     m.ledger = {};
