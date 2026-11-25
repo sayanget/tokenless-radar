@@ -159,10 +159,18 @@ if (shots.length < 3) fail(`screenshots/ holds ${shots.length} images: hand in 3
 for (const name of shots) if (!IMAGE_NAME.test(name)) fail(`screenshots/${name}: names are letters, digits and . _ -`);
 
 // The dossier is written last: the scorer rebuilds it from this /output and compares bytes.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } }));
+const dossier = buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } });
+writeFileSync(join(out, 'dossier.json'), dossier);
+
+// What the judge will read: warn (never fail) when the source text was cut or the dossier is past 1.5 MiB.
+const DOSSIER_GATE_BYTES = 1_572_864;
+const text: string = JSON.parse(Buffer.from(dossier).toString('utf8')).text;
+const cut = text.includes('[Cut at ');
+if (cut || dossier.length > DOSSIER_GATE_BYTES) process.stderr.write(`tokenless radar: warning: dossier ${dossier.length} bytes${cut ? ', source text cut' : ''}\n`);
 
 const counts = rows.reduce((c: Record<string, number>, r: any) => ((c[r.farm_verdict] = (c[r.farm_verdict] ?? 0) + 1), c), {});
 process.stdout.write(
   `tokenless radar: ${snapshot.protocols.length} protocols, ${rows.length} ranked (${m.ledger.watchlist} watchlist, ${m.ledger.offlist ?? 0} off-list, ${m.ledger.early ?? 0} early); ` +
-    `held-out miss x${sel.loo.toFixed(2)} (leave-one-out), x${sel.walk.toFixed(2)} (walk-forward); verdicts ${JSON.stringify(counts)}\n`,
+    `held-out miss x${sel.loo.toFixed(2)} (leave-one-out), x${sel.walk.toFixed(2)} (walk-forward); verdicts ${JSON.stringify(counts)}\n` +
+    `tokenless radar: dossier ${dossier.length} bytes, source text ${Buffer.byteLength(text, 'utf8')} of ${TEXT_MAX_BYTES} bytes${cut ? ' (cut)' : ', nothing cut'}\n`,
 );
